@@ -67,3 +67,52 @@ detection.
    slurs (too little character-level signal for the char-n-gram features).
 
 ## Repository structure
+data/ canonical_training_dataset_v2.csv # cleaned, deduplicated training set (4,713 rows) recovered_rows_LABELED.csv # 767 rows recovered from a label-corruption bug kaggle_organic_eval_set.csv # real, independent Facebook comment set (5,860 rows) organic_holdout_test_set.csv # fixed 1,172-row test split used for every reported comparison needs_relabel_recovered.csv # (legacy) pre-relabeling version, kept for provenance
+
+models/ bullying_model_combined.pkl # RandomForest, Model C (combined training data) vectorizer_combined.pkl # matching TF-IDF vectorizer banglabert_cyberbullying_final/ # fine-tuned BanglaBERT (Model D), if included
+
+scripts/ merge_all_sources.py # merges + deduplicates the raw labeled source files finetune_banglabert_CORRECTED.py # BanglaBERT fine-tuning (combined data, paired holdout) run_mcnemar.py # paired significance testing between any two models
+
+results/ cv_results.json # raw 5-fold CV numbers for models A/B/C model_c_predictions_on_organic_test.csv banglabert_preds_on_holdout_CORRECTED.csv chart_training_comparison.png chart_confusion_matrix_modelC.png chart_recall_by_category.png
+
+docs/ data_quality_action_plan.md # full list of data issues found + fixes final_generalization_results.md # the A/B/C organic-test experiment writeup charts_and_error_analysis.md # false positive/negative pattern analysis cv_significance_and_banglabert.md # cross-validation + McNemar methodology notes publication_readiness_suggestions.md # venue/framing/rigor suggestions for the paper
+
+
+(Adjust the above to match whatever subset of files you actually push — not
+every intermediate file needs to go in version control; the `data/`, `models/`,
+and `results/` files listed are the ones later experiments depend on.)
+
+## Reproducing the results
+
+```bash
+pip install pandas scikit-learn joblib statsmodels
+
+# Retrain RandomForest (Models A/B/C) with 5-fold CV + significance testing
+python scripts/train_randomforest_abc.py
+
+# Fine-tune BanglaBERT (Model D) — requires a GPU; Colab free tier is sufficient
+python scripts/finetune_banglabert_CORRECTED.py
+
+# Compare any two prediction files with a paired McNemar's test
+python scripts/run_mcnemar.py
+```
+
+All reported numbers use the fixed `organic_holdout_test_set.csv` split
+(random_state=42) so results are directly comparable across models and runs.
+
+## Key limitations (see `docs/data_quality_action_plan.md` for full detail)
+
+- Some training-set labels were LLM-assisted rather than purely human-annotated;
+  this is disclosed rather than presented as manual annotation, and should be
+  verified/corrected before being cited as ground truth in a publication.
+- The organic test set is Facebook-only, from a specific time period and
+  category scheme (Political/troll/sexual/Threat/Neutral); generalization to
+  other platforms or newer slang is untested.
+- The Normal class in the organic test set is smaller (n=240) than the
+  Bullying class (n=932), which limits the precision of per-class estimates
+  for that category specifically.
+
+## Citation / acknowledgment
+
+If you use the organic evaluation data, please credit the original Kaggle
+dataset author in addition to this repository.
